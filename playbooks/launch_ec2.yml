@@ -1,0 +1,19 @@
+- name: Launch an EC2 instance
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Launch EC2 Instance
+      amazon.aws.ec2_instance:
+        name: "Ansible-Managed-EC2"
+        key_name: "my-key-pair"
+        instance_type: "t2.micro"
+        security_group: "default"
+        image_id: "ami-0c55b159cbfafe1f0"  # Change based on your region
+        region: "us-east-1"
+        state: running
+        wait: yes
+      register: ec2_info
+
+    - name: Display EC2 Instance Details
+      debug:
+        msg: "EC2 instance {{ ec2_info.instance_ids }} has been created."

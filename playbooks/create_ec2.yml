@@ -1,0 +1,73 @@
+- name: Create AWS EC2 server
+  hosts: all
+  vars:
+    name: "server"
+    deployment_environment: "dev"
+    instance_type: "t2.nano"
+    image_id: "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-20220420"
+    key_name: "luca"
+    subnets: "development"
+  tasks:
+    - name: Create Server Security Group
+      amazon.aws.ec2_group:
+        state: present
+        name: "{{ name }}_server_sg"
+        description: Security group for {{ name }}
+        region: "{{ region }}"
+        vpc_id: "{{ vpc_id }}"
+        purge_rules: yes
+        purge_tags: yes
+        rules:
+          - rule_desc: Allow LB HTTP healthcheck
+            proto: tcp
+            from_port: 80
+            to_port: 80
+            group_id: "{{ lb_security_group_id }}"
+          - rule_desc: Allow LB HTTPS traffic
+            proto: tcp
+            from_port: 443
+            to_port: 443
+            group_id: "{{ lb_security_group_id }}"
+        rules_egress:
+        tags:
+          Name: server_sg
+      register: server_sg
+
+    - name: Create Server Remote Access Security Group
+      amazon.aws.ec2_group:
+        state: present
+        name: "{{ name }}_server_remote_sg"
+        description: Only for dev environments
+        region: "{{ region }}"
+        vpc_id: "{{ vpc_id }}"
+        purge_rules: yes
+        purge_tags: yes
+        rules:
+          - rule_desc: Allow Inbound SSH Traffic
+            proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: "{{ remote_ssh_cidr }}"
+        rules_egress:
+        tags:
+          Name: server_remote_sg
+      register: server_remote_sg
+      when: deployment_environment == "dev"
+
+    - name: Create EC2 instances for 'dev' environment
+      amazon.aws.ec2_instance:
+        name: server
+        instance_type: "{{ instance_type }}"
+        image_id: "{{ image_id }}"
+        vpc_subnet_id: "{{ item }}"
+        key_name: "{{ keypair_name }}"
+        security_groups:
+          - "{{ server_sg.group_id }}"
+          - "{{ server_remote_sg.group_id }}"
+        network:
+          assign_public_ip: true
+        wait: no
+      with_items:
+        - "{{ subnets }}"
+      register: server_instances
+      when: deployment_environment == "dev"

@@ -1,0 +1,9 @@
+- name: Stop an EC2 instance
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Stop the EC2 instance
+      amazon.aws.ec2_instance:
+        region: "us-east-1"
+        instance_ids: ["i-xxxxxxxxxxxxxxxxx"]  # Replace with your instance ID
+        state: stopped
